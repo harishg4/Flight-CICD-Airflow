@@ -1,0 +1,7 @@
+.git
+.github
+output/
+__pycache__/
+*.pyc
+logs/
+.DS_Store
