@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when, lit, count, avg
 
+
 def run_spark_job(input_path, output_dir):
     spark = SparkSession.builder.appName("FlightProcess").getOrCreate()
 
@@ -23,16 +24,16 @@ def run_spark_job(input_path, output_dir):
     route_data = df_transformed.groupBy("route").agg(
         count("*").alias("total_bookings"),
         avg(col("flight_duration").cast("double")).alias("Avg_Flight_Duration"),
-        avg(col("length_of_stay").cast("double")).alias("Avg_Stay_Length")
+        avg(col("length_of_stay").cast("double")).alias("Avg_Stay_Length"),
     )
 
     origin_insights = df_transformed.groupBy("booking_origin").agg(
         count("*").alias("total_bookings"),
         avg(col("booking_success_rate").cast("double")).alias("success_rate"),
-        avg(col("purchase_lead").cast("double")).alias("Avg_purchase_lead")
+        avg(col("purchase_lead").cast("double")).alias("Avg_purchase_lead"),
     )
 
-    # Write results as single CSV files inside one folder
+    # Write results (Spark will create folders with CSV part files)
     df_transformed.coalesce(1).write.mode("overwrite").csv(f"{output_dir}/transformed.csv", header=True)
     route_data.coalesce(1).write.mode("overwrite").csv(f"{output_dir}/route_insights.csv", header=True)
     origin_insights.coalesce(1).write.mode("overwrite").csv(f"{output_dir}/origin_insights.csv", header=True)
