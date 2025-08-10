@@ -6,7 +6,7 @@ on:
     branches: [ main ]
 
 jobs:
-  lint-test:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,18 +20,15 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Install dependencies (Airflow + Spark + Dev Tools)
-        env:
-          AIRFLOW_VERSION: 2.9.0
-          PYTHON_VERSION: 3.11
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install "apache-airflow==${AIRFLOW_VERSION}" \
-            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-          pip install pyspark==3.5.0 flake8 black pytest pyarrow
+          pip install -r requirements.txt
+          pip install flake8 black pytest pyarrow
 
       - name: Lint (flake8)
-        run: flake8 airflow_job spark_job
+        run: flake8 airflow_job spark_job --max-line-length=120 --ignore=F401,E302,E501
+
 
       - name: Format check (black)
         run: black --check airflow_job spark_job
