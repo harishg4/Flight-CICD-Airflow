@@ -32,7 +32,7 @@ jobs:
           # Project deps
           pip install -r requirements.txt
           # Dev/test tools
-          pip install flake8 black pytest pyarrow
+          pip install flake8 black pytest pyarrow pandas
 
       - name: Lint (flake8)
         run: flake8 airflow_job spark_job --max-line-length=120 --ignore=F401,E302,E305,E501
