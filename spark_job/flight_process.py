@@ -2,22 +2,27 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when, lit, count, avg
 
 
-def run_spark_job(input_path, output_dir):
+def run_spark_job(input_path: str, output_dir: str) -> None:
     spark = SparkSession.builder.appName("FlightProcess").getOrCreate()
 
     df = spark.read.csv(input_path, header=True, inferSchema=True)
 
     # Add new calculated fields
-    df_transformed = df.withColumn(
-        "is_weekend", when(col("flight_day").isin("Sat", "Sun"), lit(1)).otherwise(lit(0))
-    ).withColumn(
-        "lead_time_category",
-        when(col("purchase_lead") < 7, lit("Last-minute"))
-        .when((col("purchase_lead") >= 7) & (col("purchase_lead") < 30), lit("Short-Term"))
-        .otherwise(lit("Long-term"))
-    ).withColumn(
-        "booking_success_rate",
-        (col("booking_complete").cast("double") / col("num_passengers").cast("double"))
+    df_transformed = (
+        df.withColumn(
+            "is_weekend",
+            when(col("flight_day").isin("Sat", "Sun"), lit(1)).otherwise(lit(0)),
+        )
+        .withColumn(
+            "lead_time_category",
+            when(col("purchase_lead") < 7, lit("Last-minute"))
+            .when((col("purchase_lead") >= 7) & (col("purchase_lead") < 30), lit("Short-Term"))
+            .otherwise(lit("Long-term")),
+        )
+        .withColumn(
+            "booking_success_rate",
+            col("booking_complete").cast("double") / col("num_passengers").cast("double"),
+        )
     )
 
     # Aggregations
@@ -33,7 +38,7 @@ def run_spark_job(input_path, output_dir):
         avg(col("purchase_lead").cast("double")).alias("Avg_purchase_lead"),
     )
 
-    # Write results (Spark will create folders with CSV part files)
+    # Write results (Spark creates folders with CSV part files)
     df_transformed.coalesce(1).write.mode("overwrite").csv(f"{output_dir}/transformed.csv", header=True)
     route_data.coalesce(1).write.mode("overwrite").csv(f"{output_dir}/route_insights.csv", header=True)
     origin_insights.coalesce(1).write.mode("overwrite").csv(f"{output_dir}/origin_insights.csv", header=True)
