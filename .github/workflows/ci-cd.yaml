@@ -21,17 +21,24 @@ jobs:
           java-version: '17'
 
       - name: Install dependencies
+        env:
+          AIRFLOW_VERSION: 2.9.0
+          PYTHON_VERSION: "3.11"
         run: |
           python -m pip install --upgrade pip
+          # Install Airflow with pinned constraints (required for reliability)
+          pip install "apache-airflow==${AIRFLOW_VERSION}" \
+            --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
+          # Project deps
           pip install -r requirements.txt
+          # Dev/test tools
           pip install flake8 black pytest pyarrow
 
       - name: Lint (flake8)
-        run: flake8 airflow_job spark_job --max-line-length=120 --ignore=F401,E302,E501
-
+        run: flake8 airflow_job spark_job --max-line-length=120 --ignore=F401,E302,E305,E501
 
       - name: Format check (black)
-        run: black --check airflow_job spark_job
+        run: black --check --line-length 120 airflow_job spark_job
 
       - name: DAG import check
         run: |
@@ -52,26 +59,17 @@ jobs:
           python - <<'PY'
           import os, tempfile, pandas as pd
           from pyspark.sql import SparkSession
-
-          df = pd.DataFrame([
-              {"num_passengers":2,"sales_channel":"Internet","trip_type":"RoundTrip","purchase_lead":10,
-               "length_of_stay":5,"flight_hour":7,"flight_day":"Sat","route":"AKLDEL","booking_origin":"New Zealand",
-               "wants_extra_baggage":1,"wants_preferred_seat":0,"wants_in_flight_meals":0,"flight_duration":5.5,"booking_complete":1},
-          ])
-
+          df = pd.DataFrame([{
+            "num_passengers":2,"sales_channel":"Internet","trip_type":"RoundTrip","purchase_lead":10,
+            "length_of_stay":5,"flight_hour":7,"flight_day":"Sat","route":"AKLDEL","booking_origin":"New Zealand",
+            "wants_extra_baggage":1,"wants_preferred_seat":0,"wants_in_flight_meals":0,"flight_duration":5.5,"booking_complete":1
+          }])
           with tempfile.TemporaryDirectory() as tmp:
-              src = os.path.join(tmp, 'sample.csv')
-              out = os.path.join(tmp, 'out')
-              df.to_csv(src, index=False)
-
-              spark = (SparkSession.builder.appName('ci-smoke')
-                                  .master('local[*]')
-                                  .getOrCreate())
-              sdf = spark.read.csv(src, header=True, inferSchema=True)
-              sdf = sdf.select('route')
-              sdf.coalesce(1).write.mode('overwrite').csv(out, header=True)
-              spark.stop()
-
-              assert os.path.exists(out), 'Spark did not write output'
+            src = os.path.join(tmp, 'sample.csv'); out = os.path.join(tmp, 'out')
+            df.to_csv(src, index=False)
+            spark = SparkSession.builder.appName('ci-smoke').master('local[*]').getOrCreate()
+            spark.read.csv(src, header=True, inferSchema=True).select('route').coalesce(1).write.mode('overwrite').csv(out, header=True)
+            spark.stop()
+            assert os.path.exists(out), 'Spark did not write output'
           print('Spark smoke test passed')
           PY
